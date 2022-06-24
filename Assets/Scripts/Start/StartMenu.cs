@@ -14,7 +14,7 @@ public class StartMenu : MonoBehaviour
 
     private void Start()
     {
-        //PlayerPrefs.DeleteAll();
+        PlayerPrefs.DeleteAll();
         if(PlayerPrefs.GetInt("GameStarted", 0) != 0)
         {
             Destroy(this.gameObject);

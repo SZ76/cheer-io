@@ -5,8 +5,11 @@ using UnityEngine;
 public class PanZoom : MonoBehaviour
 {
     Vector3 touchStart;
+    Vector3 touchStartScreen;
     public float zoomOutMin = 30;
     public float zoomOutMax = 600;
+
+    public GameObject grid;
 
     // Update is called once per frame
     void Update()
@@ -14,6 +17,7 @@ public class PanZoom : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             touchStart = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            touchStartScreen = Input.mousePosition;
         }
         if (Input.touchCount == 2)
         {
@@ -34,9 +38,21 @@ public class PanZoom : MonoBehaviour
         else if (Input.GetMouseButton(0))
         {
             Vector3 direction = touchStart - Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            Camera.main.transform.position += direction;
+            if ((Tile.stage > 1 && touchStartScreen.y > Screen.height / 5) || Tile.stage == 0)
+            {
+                Camera.main.transform.position += direction;
+            }
         }
         zoom(Input.GetAxis("Mouse ScrollWheel" ) * 100);
+
+        if(Camera.main.orthographicSize > 50)
+        {
+            grid.SetActive(false);
+        }
+        else
+        {
+            grid.SetActive(true);
+        }
     }
 
     void zoom(float increment)

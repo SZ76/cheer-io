@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using StackExchange.Redis;
 using TMPro;
+using System;
 
 public class Redis : MonoBehaviour
 {
@@ -24,6 +25,10 @@ public class Redis : MonoBehaviour
         colors = colorsPublic;
     }
 
+    private void Start()
+    {
+    }
+
     // Update is called once per frame
     public SpriteRenderer map;
     public bool runIt = false;
@@ -37,6 +42,7 @@ void Update()
     {
         if (runIt)
         {
+            
             runIt = false;
             byte[] mapByte = new byte[2048 * 2 * 1000];
             byte[] mapID = new byte[2048 * 1000];
@@ -67,6 +73,7 @@ void Update()
 
     public static byte[] mapByte;
     public static byte[] mapID;
+    public static int numOfTiles = 0;
     public static GameObject[] mapNum = new GameObject[2048 * 1000];
     public GameObject number;
     void GetMap()
@@ -90,6 +97,8 @@ void Update()
                         num.transform.SetParent( number.transform.parent);
                         num.GetComponent<TextMeshProUGUI>().SetText(lvl.ToString());
                         mapNum[x + y * 2048] = num;
+                        if (PlayerPrefs.GetInt(x + " " + y, 0) != 0)
+                            numOfTiles += 1;
                     }
                     byte gotColor = mapByte[(x + 2048 * y) * 2];
                     if (gotColor != 0)
@@ -104,7 +113,6 @@ void Update()
     {
         if (db.IsConnected("map"))
         {
-            print("Setting pixel" + x + " " + y  + " " + a  + " " + b);
             RedisValue val = new byte[] { a, b };
             db.StringSetRange("map", (x + 2048 * y) * 2,val);
             RedisValue i = new byte[] { id };
@@ -120,5 +128,10 @@ void Update()
         PlayerPrefs.SetInt(x + " " + y, id);
         mapID[x + 2048 * y] = id;
 
+    }
+
+    public double ServerTime()
+    {
+        return ((TimeSpan)db.KeyIdleTime("Time")).TotalSeconds;
     }
 }
