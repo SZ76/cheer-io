@@ -97,14 +97,33 @@ void Update()
                         num.transform.SetParent( number.transform.parent);
                         num.GetComponent<TextMeshProUGUI>().SetText(lvl.ToString());
                         mapNum[x + y * 2048] = num;
-                        if (PlayerPrefs.GetInt(x + " " + y, 0) != 0)
+                        int coord = PlayerPrefs.GetInt(x + " " + y, 0);
+                        if (coord == mapID[x + 2048 * y])
                             numOfTiles += 1;
+                        else if (coord != 0)
+                            PlayerPrefs.DeleteKey(x + " " + y);
+
                     }
                     byte gotColor = mapByte[(x + 2048 * y) * 2];
+                    
                     if (gotColor != 0)
+                    {
+                        /*Vector3 hsv;
+                        Color.RGBToHSV(colors[gotColor], out hsv.x, out hsv.y, out hsv.z);
+
+                        byte vSubtract = mapByte[(x + 2048 * y) * 2 + 1];
+
+                        vSubtract = (byte)((float)vSubtract / 100f * hsv.z);//sets scale from 0 to 100 - darkens based on level
+                        if (vSubtract > hsv.z)
+                            vSubtract = (byte)hsv.z;//sets to black if greater than hsv.z (v) so it doesnt go negative
+
+                        Color newColor = Color.HSVToRGB(hsv.x, hsv.y, hsv.z - vSubtract);
+                        if(vSubtract > 0) print(hsv.z + " " + vSubtract);*/
                         map.sprite.texture.SetPixel(x, y, colors[gotColor]);
+                    }
                 }
             }
+            GiveTile.tilesPerTime = (int)(numOfTiles / 5) + 1;
             map.sprite.texture.Apply();
         }
     }
@@ -130,8 +149,8 @@ void Update()
 
     }
 
-    public double ServerTime()
+    public static int ServerTime()
     {
-        return ((TimeSpan)db.KeyIdleTime("Time")).TotalSeconds;
+        return (int)((TimeSpan)db.KeyIdleTime("Time")).TotalSeconds;
     }
 }

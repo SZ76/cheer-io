@@ -8,9 +8,13 @@ using FancyScrollView.Example02;
 
 public class Tile : MonoBehaviour {
 
+    public GameObject showTile;
+
     private void Start()
     {
         color = Redis.colors[PlayerPrefs.GetInt("Color")];
+        Vector2 startPos = new Vector2(PlayerPrefs.GetInt("tileX"), PlayerPrefs.GetInt("tileY"));
+        showTile.transform.position = startPos;
     }
 
     public SpriteRenderer map;
@@ -45,20 +49,22 @@ public class Tile : MonoBehaviour {
             outline2.SetActive(false);
             scroll.SetActive(false);
             hotbar.SetActive(false);
-        }else if(stage == 1)
-        {
-            buttonGo.SetActive(false);
-            buttonCancel.SetActive(true);
-            outline.SetActive(true);
-            outline2.SetActive(false);
-            hotbar.SetActive(false);
-        }else if (stage == 2)
+        }
+        else if (stage == 2 || GiveTile.tiles > 0)
         {
             buttonGo.SetActive(true);
             buttonCancel.SetActive(true);
             outline.SetActive(true);
             outline2.SetActive(true);
             hotbar.SetActive(true);
+        }
+        else if(stage == 1)
+        {
+            buttonGo.SetActive(false);
+            buttonCancel.SetActive(true);
+            outline.SetActive(true);
+            outline2.SetActive(false);
+            hotbar.SetActive(false);
         }
 
 
@@ -82,18 +88,24 @@ public class Tile : MonoBehaviour {
                     if (PlayerPrefs.GetInt("GameStarted") != 0)
                     {
                         if (stage == 0 &&//first click
-                            Redis.mapByte[(roundedPos[0] + roundedPos[1] * 2048) * 2 + 1] > 1 &&//checks that tile can be split
                             IsPossesion(roundedPos[0], roundedPos[1]))//checks possesion
                         {
                             rounded = new int[] { (int)Mathf.Round(pos.x), (int)Mathf.Round(pos.y) };
                             outline.transform.position = new Vector2(rounded[0], rounded[1]);
+                            int numOfTiles = PlayerPrefs.GetInt("NumOfTiles");
+                            if (numOfTiles > 0)
+                            {
+                                scrollNum = (byte)(numOfTiles+1);
+                                startScrollNum = 1;
+                                Destroy(canvas.GetComponent<Example02>());
+                                Destroy(newScroll);
+                                StartCoroutine(SecondStage(pos));
+                            }
                             stage = 1;
                         }
                         else if ((stage == 1 || stage == 2) &&
                             IsConnected(roundedPos[0], roundedPos[1]))
                         {
-                            
-
                             rounded = new int[] { (int)Mathf.Round(pos.x), (int)Mathf.Round(pos.y) };
                             int x = (int)outline.transform.position.x;//xpos of old tile
                             int y = (int)outline.transform.position.y;//ypos of old tile
@@ -103,6 +115,7 @@ public class Tile : MonoBehaviour {
                             if (scrollNum > startScrollNum) {
                                 Destroy(canvas.GetComponent<Example02>());
                                 Destroy(newScroll);
+                                stage = 2;
                                 StartCoroutine(SecondStage(pos));
                             }
                         }
@@ -122,14 +135,13 @@ public class Tile : MonoBehaviour {
         
         //creates scroll bar to select number
         newScroll = Instantiate(scroll);//creates new scroll
-        newScroll.transform.SetParent(canvas.transform);//sets canvas as parent so its visible
-        newScroll.transform.localPosition = new Vector2(0, 25);//sets local position to correct position
+        newScroll.transform.SetParent(canvas.transform.Find("Hotbar"));//sets canvas as parent so its visible
+        newScroll.transform.localPosition = new Vector2(0, 180);//sets local position to correct position
         newScroll.SetActive(true);//activates it just incase???
         newScroll.transform.localScale = new Vector3(1, 1, 1);
         canvas.AddComponent<Example02>();//adds scroll component to canvas
 
         outline2.transform.position = new Vector2(rounded[0], rounded[1]);
-        stage = 2;
     }
 
     [PunRPC]
@@ -151,7 +163,9 @@ public class Tile : MonoBehaviour {
     bool TileOnLand(int x, int y)
     {
         waterColor = Redis.colors[0];
-        return map.sprite.texture.GetPixel(x, y) != waterColor;
+        return (map.sprite.texture.GetPixel(x, y) != waterColor) && 
+            (map.sprite.texture.GetPixel(x, y) != new Color(15 / 255f, 27 / 255f, 84 / 255f) &&
+            (map.sprite.texture.GetPixel(x,y) != Color.white));
     }
 
     void SaveTileToServer(int[] data, byte a, byte b, byte id)
@@ -160,6 +174,8 @@ public class Tile : MonoBehaviour {
     }
 
     public byte reduce = 3;
+
+    public TextMeshProUGUI numTiles;
 
     public void ClickGoButton()
     {
@@ -171,26 +187,44 @@ public class Tile : MonoBehaviour {
 
         byte a = (byte)System.Array.IndexOf(Redis.colors, color);
         byte b = (byte)(reduce - Redis.mapByte[(rounded[0] + rounded[1] * 2048) * 2 + 1]);
+        print(stage);
+        if (stage == 2)
+        {
+            //removes subtracted amount from old tile
+            int x = (int)outline.transform.position.x;//xpos of old tile
+            int y = (int)outline.transform.position.y;//ypos of old tile
+            byte b1 = Redis.mapByte[(x + y * 2048) * 2];//map color old tile
+            byte b2 = (byte)(Redis.mapByte[(x + y * 2048) * 2 + 1] - reduce);//lvl of old tile
+            byte id = (byte)(Redis.mapID[x + y * 2048]);//tile id doesnt change ownership so ID stays same
+            SaveTileToServer(new int[] { x, y }, b1, b2, id);//sends old tile update to server
+            photonView.RPC("sendData", RpcTarget.All,
+                new int[] { x, y }, new Vector3(color.r, color.g, color.b), b1, b2, id);//sends old tile to players connected to game
 
-        //removes one from old tile
-        int x = (int)outline.transform.position.x;//xpos of old tile
-        int y = (int)outline.transform.position.y;//ypos of old tile
-        byte b1 = Redis.mapByte[(x + y * 2048) * 2];//map color old tile
-        byte b2 = (byte)(Redis.mapByte[(x + y * 2048) * 2 + 1] - reduce);//lvl of old tile
-        byte id = (byte)(Redis.mapID[x + y * 2048]);//tile id doesnt change ownership so ID stays same
-        SaveTileToServer(new int[] { x, y }, b1, b2, id);//sends old tile update to server
-        photonView.RPC("sendData", RpcTarget.All,
-            new int[] { x, y }, new Vector3(color.r, color.g, color.b), b1, b2, id);//sends old tile to players connected to game
+            //sends tile to players currently online
+            byte id2 = (byte)(Redis.mapID[rounded[0] + rounded[1] * 2048] + 1);
+            photonView.RPC("sendData", RpcTarget.All,
+                rounded, new Vector3(color.r, color.g, color.b), a, b, id2);
 
-        //sends tile to players currently online
-        byte id2 = (byte)(Redis.mapID[rounded[0] + rounded[1] * 2048] + 1);
-        photonView.RPC("sendData", RpcTarget.All,
-            rounded, new Vector3(color.r, color.g, color.b), a, b, id2);
+            //save tile to server
+            SaveTileToServer(rounded, a, b, id2);
 
-        //save tile to server
-        SaveTileToServer(rounded, a, b, id2);
-
-        stage = 0;//restarts tile selection stage
+            stage = 0;//restarts tile selection stage
+        }
+        else
+        {
+            int x = (int)outline.transform.position.x;//xpos of old tile
+            int y = (int)outline.transform.position.y;//ypos of old tile
+            byte b1 = Redis.mapByte[(x + y * 2048) * 2];//map color old tile
+            byte b2 = (byte)(Redis.mapByte[(x + y * 2048) * 2 + 1] + reduce);//lvl of old tile
+            byte id = (byte)(Redis.mapID[x + y * 2048]);//tile id doesnt change ownership so ID stays same
+            SaveTileToServer(new int[] { x, y }, b1, b2, id);//sends old tile update to server
+            photonView.RPC("sendData", RpcTarget.All,
+                new int[] { x, y }, new Vector3(color.r, color.g, color.b), b1, b2, id);//sends old tile to players connected to game
+            GiveTile.tiles -= reduce;
+            PlayerPrefs.SetInt("NumOfTiles", GiveTile.tiles);
+            numTiles.text = $"Unplaced: {GiveTile.tiles}";
+            stage = 0;
+        }
     }
 
     public void ClickCancelButton()
@@ -220,7 +254,7 @@ public class Tile : MonoBehaviour {
 
     public bool IsPossesion(int x, int y)
     {
-        print(PlayerPrefs.GetInt(x + " " + y) + " " + Redis.mapID[x + y * 2048]);
+        //print(PlayerPrefs.GetInt(x + " " + y) + " " + Redis.mapID[x + y * 2048]);
         return PlayerPrefs.GetInt(x + " " + y) == Redis.mapID[x + y * 2048];
     }
 
@@ -241,8 +275,8 @@ public class Tile : MonoBehaviour {
         map.sprite.texture.Apply();
 
         //save tile to server
+        PlayerPrefs.SetInt("tileX", x);
+        PlayerPrefs.SetInt("tileY", y);
         SaveTileToServer(pos, (byte)colorInt, (byte)10, (byte)2);
     }
-
-
 }

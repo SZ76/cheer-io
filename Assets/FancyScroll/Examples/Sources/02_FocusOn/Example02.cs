@@ -17,7 +17,7 @@ namespace FancyScrollView.Example02
 
         void Start()
         {
-            scrollView = GameObject.FindGameObjectWithTag("ScrollView").GetComponent<ScrollView>();
+            scrollView = this.transform.Find("Hotbar").Find("Scroll(Clone)").Find("ScrollView").GetComponent<ScrollView>();
             tile = GameObject.FindGameObjectWithTag("TileManager").GetComponent<Tile>();
             scrollView.OnSelectionChanged(OnSelectionChanged);
 

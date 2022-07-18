@@ -10,6 +10,7 @@ public class PanZoom : MonoBehaviour
     public float zoomOutMax = 600;
 
     public GameObject grid;
+    public GameObject show;
 
     // Update is called once per frame
     void Update()
@@ -33,7 +34,7 @@ public class PanZoom : MonoBehaviour
 
             float difference = currentMagnitude - prevMagnitude;
 
-            zoom(difference * 1f);
+            zoom(difference * .3f);
         }
         else if (Input.GetMouseButton(0))
         {
@@ -43,15 +44,24 @@ public class PanZoom : MonoBehaviour
                 Camera.main.transform.position += direction;
             }
         }
-        zoom(Input.GetAxis("Mouse ScrollWheel" ) * 100);
+        zoom(Input.GetAxis("Mouse ScrollWheel" ) * 70);
 
-        if(Camera.main.orthographicSize > 50)
+        if(Camera.main.orthographicSize > 40)
         {
             grid.SetActive(false);
         }
         else
         {
             grid.SetActive(true);
+        }
+
+        if (Camera.main.orthographicSize > 60)
+        {
+            show.SetActive(true);
+        }
+        else
+        {
+            show.SetActive(false);
         }
     }
 
